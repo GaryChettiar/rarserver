@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';  // Import url_launcher
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,15 +22,25 @@ class ServerApp extends StatelessWidget {
 
 class FirestoreListenerPage extends StatefulWidget {
   @override
-  _FirestoreListenerPageState createState() =>
-      _FirestoreListenerPageState();
+  _FirestoreListenerPageState createState() => _FirestoreListenerPageState();
 }
 
 class _FirestoreListenerPageState extends State<FirestoreListenerPage> {
+  // Function to launch Google Maps with the given latitude and longitude
+  Future<void> _openGoogleMaps(double latitude, double longitude) async {
+    final url = 'https://www.google.com/maps?q=$latitude,$longitude';
+    Uri uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri); // Launch the Google Maps URL
+    } else {
+      throw 'Could not open the map.';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Server App - Real-Time Updates')),
+      appBar: AppBar(title: const Text('Server App')),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('formData')
@@ -47,6 +58,10 @@ class _FirestoreListenerPageState extends State<FirestoreListenerPage> {
             itemBuilder: (context, index) {
               final data = docs[index].data() as Map<String, dynamic>;
 
+              // Extract latitude and longitude
+              final latitude = data['location']?['latitude'] ?? 0.0;
+              final longitude = data['location']?['longitude'] ?? 0.0;
+
               return Card(
                 margin: const EdgeInsets.all(8),
                 child: ListTile(
@@ -56,9 +71,16 @@ class _FirestoreListenerPageState extends State<FirestoreListenerPage> {
                     children: [
                       Text('Email: ${data['email'] ?? 'No Email'}'),
                       Text('Message: ${data['message'] ?? 'No Message'}'),
+                      Text('Latitude: $latitude'),
+                      Text('Longitude: $longitude'),
                     ],
                   ),
-                  trailing: Text(data['timestamp']?.toDate().toString() ?? ''),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.map),
+                    onPressed: () {
+                      _openGoogleMaps(latitude, longitude);  // Open Google Maps
+                    },
+                  ),
                 ),
               );
             },
